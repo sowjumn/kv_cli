@@ -28,8 +28,8 @@ func (db DB) Count(value string) int {
 	return count
 }
 
-func NewDB() DB {
-	return DB{
+func NewDB() *DB {
+	return &DB{
 		Store: map[string]string{},
 	}
 }
