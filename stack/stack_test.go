@@ -3,15 +3,15 @@ package stack
 import (
 	"reflect"
 	"testing"
+
+	"github.com/sowjumn/interview/devoted/DB"
 )
 
 func TestStackPushPop(t *testing.T) {
 	ts := NewTransactionStack()
 
-	map1 := make(map[string]string)
-	map1["a"] = "foo"
-	map1["b"] = "bar"
-	tx1 := Transaction{Store: map1}
+	localStore := DB.NewDB()
+	tx1 := Transaction{Cache: localStore}
 	ts.Push(tx1)
 
 	val := ts.Pop()

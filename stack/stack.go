@@ -1,7 +1,15 @@
 package stack
 
+import "github.com/sowjumn/interview/devoted/DB"
+
 type Transaction struct {
-	Store map[string]string
+	Cache *DB.DB
+}
+
+func NewTransaction() *Transaction {
+	return &Transaction{
+		Cache: DB.NewDB(),
+	}
 }
 
 type TransactionStack struct {
@@ -22,8 +30,8 @@ func (ts *TransactionStack) Pop() Transaction {
 	return lastTx
 }
 
-func NewTransactionStack() TransactionStack {
-	return TransactionStack{
+func NewTransactionStack() *TransactionStack {
+	return &TransactionStack{
 		Stack: []Transaction{},
 	}
 }

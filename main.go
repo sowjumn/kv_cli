@@ -7,12 +7,12 @@ import (
 	"strings"
 
 	"github.com/sowjumn/interview/devoted/DB"
+	"github.com/sowjumn/interview/devoted/stack"
 )
 
 func main() {
 	mainDB := DB.NewDB()
-	//transactionStack := stack.NewTransactionStack()
-
+	txStack := stack.NewTransactionStack()
 	reader := bufio.NewReader(os.Stdin)
 
 	for {
@@ -27,13 +27,19 @@ func main() {
 			case "END":
 				os.Exit(0)
 			case "SET":
-				SetVal(opArr, mainDB)
+				SetVal(opArr, mainDB, txStack)
 			case "GET":
-				GetVal(opArr, mainDB)
+				GetVal(opArr, mainDB, txStack)
 			case "COUNT":
-				CountKey(opArr, mainDB)
+				CountKey(opArr, mainDB, txStack)
 			case "DELETE":
-				DeleteKey(opArr, mainDB)
+				DeleteKey(opArr, mainDB, txStack)
+			case "BEGIN":
+				StartTransaction(txStack)
+			case "COMMIT":
+				CommitTransaction(mainDB, txStack)
+			case "ROLLBACK":
+				RollbackTransaction(txStack)
 			case "DEFAULT":
 				PrintError()
 			}
@@ -41,28 +47,55 @@ func main() {
 	}
 }
 
-func SetVal(opArr []string, mainDB *DB.DB) {
+func SetVal(opArr []string, mainDB *DB.DB, currTxStack *stack.TransactionStack) {
 	if len(opArr) != 3 {
 		PrintError()
 		os.Exit(1)
 	}
-	mainDB.Set(opArr[1], opArr[2])
+
+	if len(currTxStack.Stack) == 0 {
+		// if transaction stack empty
+		mainDB.Set(opArr[1], opArr[2])
+	} else {
+		// get the last transaction
+		recentTx := currTxStack.Pop()
+		recentTx.Cache.Set(opArr[1], opArr[2])
+		currTxStack.Push(recentTx)
+	}
 }
 
-func GetVal(opArr []string, mainDB *DB.DB) {
+func GetVal(opArr []string, mainDB *DB.DB, currTxStack *stack.TransactionStack) {
+	var val string
+	var ok bool
+
 	if len(opArr) != 2 {
 		PrintError()
 		os.Exit(1)
 	}
-	val, ok := mainDB.Get(opArr[1])
-	if ok {
+
+	// walk through the stack implemented as a slice of txs to find the latest value for the key
+	for i := len(currTxStack.Stack) - 1; i >= 0; i-- {
+		lastTx := currTxStack.Stack[i]
+		val, ok = lastTx.Cache.Get(opArr[1])
+		if ok {
+			break
+		}
+	}
+
+	// if key is not found in the transaction stack get it from mainDB
+	if !ok {
+		val, ok = mainDB.Get(opArr[1])
+	}
+
+	if ok && val != "DELETE" {
 		fmt.Println(val)
 	} else {
 		fmt.Println("NULL")
 	}
+
 }
 
-func CountKey(opArr []string, mainDB *DB.DB) {
+func CountKey(opArr []string, mainDB *DB.DB, currTxStack *stack.TransactionStack) {
 	if len(opArr) != 2 {
 		PrintError()
 		os.Exit(1)
@@ -71,12 +104,47 @@ func CountKey(opArr []string, mainDB *DB.DB) {
 	fmt.Println(val)
 }
 
-func DeleteKey(opArr []string, mainDB *DB.DB) {
+func DeleteKey(opArr []string, mainDB *DB.DB, currTxStack *stack.TransactionStack) {
 	if len(opArr) != 3 {
 		PrintError()
 		os.Exit(1)
 	}
+
+	if len(currTxStack.Stack) > 0 {
+		recentTx := currTxStack.Pop()
+		recentTx.Cache.Set(opArr[1], "DELETE")
+		currTxStack.Push(recentTx)
+	} else {
+		mainDB.Delete(opArr[1])
+	}
 	mainDB.Delete(opArr[1])
+}
+
+func StartTransaction(txStack *stack.TransactionStack) {
+	newTx := stack.NewTransaction()
+	txStack.Push(*newTx)
+}
+
+func CommitTransaction(mainDB *DB.DB, txStack *stack.TransactionStack) {
+	var currTx stack.Transaction
+	for i := 0; i < len(txStack.Stack)-1; i++ {
+		currTx = txStack.Stack[i]
+		for k, v := range currTx.Cache.Store {
+			if v == "DELETE" {
+				mainDB.Delete(k)
+			} else {
+				mainDB.Set(k, v)
+			}
+		}
+	}
+}
+
+func RollbackTransaction(txStack *stack.TransactionStack) {
+	if len(txStack.Stack) > 0 {
+		txStack.Pop()
+	} else {
+		fmt.Printf("TRANSACTION NOT FOUND")
+	}
 }
 
 func PrintError() {
