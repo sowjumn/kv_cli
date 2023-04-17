@@ -47,24 +47,24 @@ func main() {
 	}
 }
 
-func SetVal(opArr []string, mainDB *DB.DB, currTxStack *stack.TransactionStack) {
+func SetVal(opArr []string, mainDB *DB.DB, txStack *stack.TransactionStack) {
 	if len(opArr) != 3 {
 		PrintError()
 		os.Exit(1)
 	}
 
-	if len(currTxStack.Stack) == 0 {
+	if len(txStack.Stack) == 0 {
 		// if transaction stack empty
 		mainDB.Set(opArr[1], opArr[2])
 	} else {
 		// get the last transaction
-		recentTx := currTxStack.Pop()
+		recentTx := txStack.Pop()
 		recentTx.Cache.Set(opArr[1], opArr[2])
-		currTxStack.Push(recentTx)
+		txStack.Push(recentTx)
 	}
 }
 
-func GetVal(opArr []string, mainDB *DB.DB, currTxStack *stack.TransactionStack) {
+func GetVal(opArr []string, mainDB *DB.DB, txStack *stack.TransactionStack) {
 	var val string
 	var ok bool
 
@@ -74,8 +74,8 @@ func GetVal(opArr []string, mainDB *DB.DB, currTxStack *stack.TransactionStack) 
 	}
 
 	// walk through the stack implemented as a slice of txs to find the latest value for the key
-	for i := len(currTxStack.Stack) - 1; i >= 0; i-- {
-		lastTx := currTxStack.Stack[i]
+	for i := len(txStack.Stack) - 1; i >= 0; i-- {
+		lastTx := txStack.Stack[i]
 		val, ok = lastTx.Cache.Get(opArr[1])
 		if ok {
 			break
@@ -122,16 +122,16 @@ func CountKey(opArr []string, mainDB *DB.DB, txStack *stack.TransactionStack) {
 	fmt.Println(count)
 }
 
-func DeleteKey(opArr []string, mainDB *DB.DB, currTxStack *stack.TransactionStack) {
+func DeleteKey(opArr []string, mainDB *DB.DB, txStack *stack.TransactionStack) {
 	if len(opArr) != 2 {
 		PrintError()
 		os.Exit(1)
 	}
 
-	if len(currTxStack.Stack) > 0 {
-		recentTx := currTxStack.Pop()
+	if len(txStack.Stack) > 0 {
+		recentTx := txStack.Pop()
 		recentTx.Cache.Set(opArr[1], "DELETE")
-		currTxStack.Push(recentTx)
+		txStack.Push(recentTx)
 	} else {
 		mainDB.Delete(opArr[1])
 	}
