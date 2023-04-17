@@ -30,6 +30,10 @@ func (ts *TransactionStack) Pop() Transaction {
 	return lastTx
 }
 
+func (ts *TransactionStack) Empty() {
+	ts.Stack = []Transaction{}
+}
+
 func NewTransactionStack() *TransactionStack {
 	return &TransactionStack{
 		Stack: []Transaction{},

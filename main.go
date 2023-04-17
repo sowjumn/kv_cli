@@ -95,17 +95,35 @@ func GetVal(opArr []string, mainDB *DB.DB, currTxStack *stack.TransactionStack) 
 
 }
 
-func CountKey(opArr []string, mainDB *DB.DB, currTxStack *stack.TransactionStack) {
+func CountKey(opArr []string, mainDB *DB.DB, txStack *stack.TransactionStack) {
 	if len(opArr) != 2 {
 		PrintError()
 		os.Exit(1)
 	}
-	val := mainDB.Count(opArr[1])
-	fmt.Println(val)
+
+	var currTx stack.Transaction
+	setUnion := make(map[string]bool)
+	count := mainDB.Count(opArr[1])
+	for i := 0; i < len(txStack.Stack); i++ {
+		currTx = txStack.Stack[i]
+		// get the set union of the keys
+		for k, v := range currTx.Cache.Store {
+			if v == "DELETE" {
+				if setUnion[k] {
+					delete(setUnion, k)
+				}
+			} else if v == opArr[1] {
+				setUnion[k] = true
+			}
+		}
+	}
+
+	count += len(setUnion)
+	fmt.Println(count)
 }
 
 func DeleteKey(opArr []string, mainDB *DB.DB, currTxStack *stack.TransactionStack) {
-	if len(opArr) != 3 {
+	if len(opArr) != 2 {
 		PrintError()
 		os.Exit(1)
 	}
@@ -127,7 +145,7 @@ func StartTransaction(txStack *stack.TransactionStack) {
 
 func CommitTransaction(mainDB *DB.DB, txStack *stack.TransactionStack) {
 	var currTx stack.Transaction
-	for i := 0; i < len(txStack.Stack)-1; i++ {
+	for i := 0; i < len(txStack.Stack); i++ {
 		currTx = txStack.Stack[i]
 		for k, v := range currTx.Cache.Store {
 			if v == "DELETE" {
@@ -137,6 +155,7 @@ func CommitTransaction(mainDB *DB.DB, txStack *stack.TransactionStack) {
 			}
 		}
 	}
+	txStack.Empty()
 }
 
 func RollbackTransaction(txStack *stack.TransactionStack) {
