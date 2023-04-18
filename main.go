@@ -162,7 +162,7 @@ func RollbackTransaction(txStack *stack.TransactionStack) {
 	if len(txStack.Stack) > 0 {
 		txStack.Pop()
 	} else {
-		fmt.Println("TRANSACTION NOT FOUND")
+		fmt.Printf("TRANSACTION NOT FOUND")
 	}
 }
 
